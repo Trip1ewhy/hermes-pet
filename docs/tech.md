@@ -338,6 +338,13 @@ hermes-pet/
 
 但仍要保留"先验证最高风险"的纪律。第一周拆三个并行小流：
 
+### 流 0 — 项目脚手架 ✅（2026-04-28 完成）
+
+- `npm create tauri-app@latest --template react-ts` 起模板
+- 实际版本：Tauri 2.10.3 / React 19.1 / Vite 7 / TypeScript 5.8 / Rust 1.95.0 stable
+- `cargo check` 通过；`npm run tauri dev` 跑通默认 GUI 弹窗
+- `Cargo.lock` 纳入 git（Tauri app 类项目锁依赖版本）
+
 ### 流 A — Tauri 窗口骨架（最高风险，最先做）⚠️
 
 1. 透明全屏窗口 + 一个 SVG 圆 + 鼠标在 SVG 外能正常点穿到 Finder（**spike 验证 macOS 透明 + 穿透**）
@@ -393,3 +400,4 @@ hermes-pet/
 
 - 2026-04-28：第一轮深聊确认 Tauri / 三气泡同步 / 上下文交给 Hermes / 一键接入 / 项目结构。本文件从"占位"升级为"V1 拍板版"。
 - 2026-04-28：完成对 features/ 5 个文档的回填同步（§11）。
+- 2026-04-28：项目脚手架就位，敲定实际版本（Tauri 2.10.3 / React 19.1 / Vite 7 / TS 5.8 / Rust 1.95.0），`Cargo.lock` 改为入库。详见 §9 流 0。

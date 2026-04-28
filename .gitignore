@@ -6,15 +6,21 @@ Icon
 ._*
 
 # Editor / IDE
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
+*.sw?
 *~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
-# Tauri / Rust（提前埋好）
+# Tauri / Rust
 src-tauri/target/
-src-tauri/Cargo.lock
+# 注意：Cargo.lock 必须提交（Tauri 是 app 类项目，Cargo 官方建议锁版本以保证 CI/本机构建一致）
 
 # Node / Frontend（提前埋好）
 node_modules/
@@ -28,7 +34,15 @@ dist-ssr/
 # Build artifacts
 *.app
 *.dmg
+
+# Logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # WorkBuddy / 本地工作元数据
 .workbuddy/
