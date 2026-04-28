@@ -10,11 +10,25 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "pet",
         "title": "Hermes 桌宠",
-        "width": 800,
-        "height": 600
+        "width": 1440,
+        "height": 900,
+        "x": 0,
+        "y": 0,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "acceptFirstMouse": true,
+        "focus": true,
+        "titleBarStyle": "Transparent",
+        "hiddenTitle": true
       }
     ],
     "security": {

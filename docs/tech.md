@@ -345,13 +345,26 @@ hermes-pet/
 - `cargo check` 通过；`npm run tauri dev` 跑通默认 GUI 弹窗
 - `Cargo.lock` 纳入 git（Tauri app 类项目锁依赖版本）
 
-### 流 A — Tauri 窗口骨架（最高风险，最先做）⚠️
+### 流 A — Tauri 窗口骨架（最高风险，最先做）⚠️ 阶段一 ✅（2026-04-28）
 
 1. 透明全屏窗口 + 一个 SVG 圆 + 鼠标在 SVG 外能正常点穿到 Finder（**spike 验证 macOS 透明 + 穿透**）
 2. 第二个独立窗口（设置面板占位）
 3. always-on-top + 不抢焦点验证
 
 **验证标准**：能看到圆，圆外能点桌面图标，圆能拖动。任何一项不通就考虑 fallback 到 Electron。
+
+**阶段一实际进展（2026-04-28）：**
+
+- ✅ 透明窗口 + always-on-top（NSWindow level=floating）+ all-spaces + never-hide：稳定
+- ✅ 200×200 米色 SVG 圆，铺在透明全屏窗口里
+- ✅ 圆内 hover 表情 + 按住拖动：稳定
+- ⚠️ **圆外点穿桌面：未通过**。两条路都失败：
+  - 前端切 `set_ignore_cursor_events`：穿透后 webview 收不到事件，没法切回，死锁
+  - Rust 30Hz 轮询 `NSEvent.mouseLocation` + emit "global-mouse" 给前端命中切：编译/运行通过，但前端 IPC 链路没生效，调试条无反应。已回退。
+- 决策：**这条 spike 暂搁置**，等流 B/C 跑通后单独啃。`set_pet_passthrough` Tauri command 在 lib.rs 里保留，给后续用。
+
+第二个独立窗口（设置面板占位）和"圆外点穿"留到阶段二。
+
 
 ### 流 B — Hermes Runner（中风险）
 
@@ -375,6 +388,9 @@ hermes-pet/
 按风险降序：
 
 1. **macOS 透明窗口 + 鼠标穿透 + always-on-top 多窗口** —— Tauri 2 在 macOS 下能否同时满足
+   - 透明 + always-on-top + all-spaces + never-hide：✅ 已验通（2026-04-28）
+   - **鼠标穿透（圆外点桌面）：❌ 未验通，已搁置**。前端切穿透会死锁；Rust 轮询 emit IPC 链路没跑通。lib.rs 里保留了 `set_pet_passthrough` command 占位。
+   - 多窗口：未验
 2. **`hermes chat -Q -q` 的 stdout 流式特性** —— 是逐 token / 逐行 / 一次性？影响对话气泡能否实时显示
 3. **`-Q` 模式下 session_id 输出位置** —— 是否在 stdout 末尾？是否被吞？
 4. **多个 hermes 子进程并发** —— 三气泡同时跑会不会撞 `~/.hermes/` 的锁、SQLite session store？
