@@ -52,11 +52,12 @@ hermes-pet/
 
 1. 所有设计讨论结果更新到 `docs/` 下的 markdown 文件（`docs/PRD.md` / `docs/tech.md` / `docs/UI-UX-Style.md` / `docs/features/*.md`）。
 2. 实现过程中的常见错误、踩坑、排障结论、临时 workaround，要及时记录到 `docs/progress.md`；稳定后的技术决策再同步回 `docs/tech.md` 或对应 feature 文档。
-3. 代码改动按正常 git 流程走（feature branch → commit → PR / push）。
-4. 不要在仓库之外创建或修改文件，除非用户明确要求（例如 `~/.hermes/`、Tauri 应用 bundle 等运行时路径）。
-5. 文档语言中文为主，技术术语和 API 名保英文。
-6. 任何"待定 / TBD"在写代码前必须回头跟用户确认。
-7. README.md 是对外的索引，PRD.md 是对内的产品需求；两者重叠部分以 README 为准。
+3. **Git 节奏（Plan C）**：当前不开 feature 分支，直接在 `main` 上推进。每个里程碑必须独立 commit + 完整 commit message（背景 / 涉及文件清单 / 关键决策原因），多条逻辑独立的改动要拆成多个 commit。
+4. **Push 规则**：本地 commit 后**不要立刻 push**。必须先本地 `npm run tauri dev` 跑通 + 用户肉眼验证 + 用户明确点头，才能 push。AI 不可自作主张 push。
+5. 不要在仓库之外创建或修改文件，除非用户明确要求（例如 `~/.hermes/`、Tauri 应用 bundle 等运行时路径）。
+6. 文档语言中文为主，技术术语和 API 名保英文。
+7. 任何"待定 / TBD"在写代码前必须回头跟用户确认。
+8. README.md 是对外的索引，PRD.md 是对内的产品需求；两者重叠部分以 README 为准。
 
 ## 角色
 
