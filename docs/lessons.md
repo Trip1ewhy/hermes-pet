@@ -44,6 +44,7 @@
 | research / cowork 输入后看不到返回 | 后端已有 chunk，UI 不弹结果 | 三气泡重构后只有 dialog 会 `onPopoverToggle(true)`；research / cowork 输出留在 hook state 里但浮窗没打开 | 三个气泡提交后统一打开结果浮窗，直接展示流式输出 |
 | 点击完成后的未读 session 可能清空内容 | 任务完成出现红点后，点击对应 session tab，下方输出 / 消息流消失 | 点击 session 会 `task.reset()`；如果完成态 `runningSessionIdRef` 尚未被 effect 清掉，空 hook 状态会回写到刚完成的 session | session 切换 / 新建 / 删除前先清空运行 ref，再 reset hook |
 | 收起生成过程后完成，点击红点看不到结果浮窗 | 任务完成后点击红点 / 气泡，只显示上方输入 pill，看不到下方消息框 | 运行中点过"收起生成过程"后，`generationCollapsed` 保持 true；点击气泡只切 `popoverOpen`，浮窗仍被 `!generationCollapsed` 挡住 | 点击气泡准备打开结果时强制 `setGenerationCollapsed(false)` |
+| 气泡红点打开后显示空 session 或只剩输入 pill | 任务完成后气泡有红点，点击气泡打开浮窗却看不到刚完成的消息记录 | 气泡级红点只表示某个 session 未读；点击输入框走 focus 路径时没有复用 label 点击的打开逻辑，可能仍停在空 active tab 或保留 `generationCollapsed` | 抽出统一的 `openBubbleView()`：打开气泡时一律优先切到第一个 `unread` session，并强制解除 `generationCollapsed`；label 点击和 input focus 都走这条路径 |
 | session tabs 行被消息区挤压 | 展开对话记录后，session tab 模块高度变窄 | session tabs 容器作为 flex 子项可收缩，下方消息区挤压了它 | 给 `.bubble-session-tabs` 固定 `flex: 0 0 36px`，tab / `+` 按钮固定同高 |
 
 ---

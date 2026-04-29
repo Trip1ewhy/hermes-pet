@@ -533,10 +533,20 @@ function Bubble({
 
   // 点击气泡（非展开态时）→ 展开浮窗看历史
   // 点击气泡（展开态时）→ 切换浮窗
+  function openBubbleView() {
+    const unreadSession = sessions.find((session) => session.unread);
+    if (unreadSession) {
+      setActiveSessionId(unreadSession.id);
+    }
+    setGenerationCollapsed(false);
+    onPopoverToggle(true);
+  }
+
   function handleBubbleClick() {
     const nextOpen = !popoverOpen;
     if (nextOpen) {
-      setGenerationCollapsed(false);
+      openBubbleView();
+      return;
     }
     onPopoverToggle(nextOpen);
   }
@@ -700,7 +710,7 @@ function Bubble({
             placeholder={cfg.placeholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onFocus={() => onFocusChange(true)}
+            onFocus={openBubbleView}
             onBlur={() => onFocusChange(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) {
