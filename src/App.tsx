@@ -14,13 +14,19 @@
 //     这里用一个"探测层"：在圆的外接矩形（hit-area）上挂事件，
 //     探测层本身也参与穿透判定（精确 hit-test 由浏览器层处理）。
 
+// 流 B 阶段：桌宠 + 临时对话面板。
+// ChatPanel 是 demo 性质的端到端验证 UI，阶段三会被三气泡 UI 取代。
+// PetCircle 仍是流 A 阶段一的米色圆占位（角色 SVG 在阶段二替换）。
+
 import PetCircle from "./components/PetCircle";
+import ChatPanel from "./components/ChatPanel";
 import "./App.css";
 
 function App() {
   return (
     <div className="pet-root">
       <PetCircle />
+      <ChatPanel />
     </div>
   );
 }
