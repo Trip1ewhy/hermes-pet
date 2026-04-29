@@ -235,6 +235,7 @@ function Bubble({
     createBubbleSession(1),
   ]);
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0].id);
+  const [generationCollapsed, setGenerationCollapsed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const popoverBodyRef = useRef<HTMLDivElement>(null);
@@ -259,6 +260,7 @@ function Bubble({
     setSessions((prev) => [...prev, next]);
     setActiveSessionId(next.id);
     currentAssistantMessageIdRef.current = null;
+    setGenerationCollapsed(false);
     onPopoverToggle(true);
     task.reset();
   }
@@ -287,6 +289,7 @@ function Bubble({
   function handleSelectSession(sessionId: string) {
     if (isRunning) return;
     setActiveSessionId(sessionId);
+    setGenerationCollapsed(false);
     setSessions((prev) =>
       prev.map((session) =>
         session.id === sessionId ? { ...session, unread: false } : session,
@@ -350,6 +353,7 @@ function Bubble({
 
     task.submit(submitArgs);
     setInput("");
+    setGenerationCollapsed(false);
 
     // 三个任务提交后都打开浮窗，让用户能直接看到流式输出。
     onPopoverToggle(true);
@@ -361,21 +365,31 @@ function Bubble({
     onPopoverToggle(!popoverOpen);
   }
 
+  function handleCollapseGeneration() {
+    setGenerationCollapsed(true);
+    onPopoverToggle(false);
+  }
+
+  function handleExpandGeneration() {
+    setGenerationCollapsed(false);
+    onPopoverToggle(true);
+  }
+
   // 浮窗 hit region
   useEffect(() => {
     if (!popoverOpen) {
       updateHitRegion(`popover-${cfg.kind}`, null);
       return;
     }
-    // 估算浮窗高度（取 max 即可，hit region 不需要精准）
+    // 展开 icon 收起态只保留一个很小的 hit region。
     updateHitRegion(`popover-${cfg.kind}`, {
       x: popoverAnchor.left,
       y: popoverAnchor.top,
       width: POPOVER_WIDTH,
-      height: POPOVER_MAX_HEIGHT,
+      height: generationCollapsed ? 32 : POPOVER_MAX_HEIGHT,
     });
     return () => updateHitRegion(`popover-${cfg.kind}`, null);
-  }, [popoverOpen, popoverAnchor.left, popoverAnchor.top, cfg.kind]);
+  }, [popoverOpen, popoverAnchor.left, popoverAnchor.top, cfg.kind, generationCollapsed]);
 
   // 浮窗打开后自动聚焦输入框（dialog 体验）
   useEffect(() => {
@@ -510,19 +524,32 @@ function Bubble({
             disabled={isRunning}
           />
           {isRunning && (
-            <button
-              className="bubble-pill-cancel"
-              onClick={() => task.cancel()}
-              title="取消"
-            >
-              ×
-            </button>
+            <>
+              <button
+                className="bubble-pill-toggle"
+                onClick={
+                  generationCollapsed
+                    ? handleExpandGeneration
+                    : handleCollapseGeneration
+                }
+                title={generationCollapsed ? "展开生成过程" : "收起生成过程"}
+              >
+                {generationCollapsed ? "▴" : "▾"}
+              </button>
+              <button
+                className="bubble-pill-cancel"
+                onClick={() => task.cancel()}
+                title="取消"
+              >
+                ×
+              </button>
+            </>
           )}
         </div>
       )}
 
       {/* 结果浮窗 */}
-      {visible && popoverOpen && (
+      {visible && popoverOpen && !generationCollapsed && (
         <div
           ref={popoverRef}
           className="bubble-popover"

@@ -103,13 +103,12 @@
   cursor: not-allowed;
 }
 
+.bubble-pill-toggle,
 .bubble-pill-cancel {
   flex: 0 0 auto;
   width: 20px;
   height: 20px;
   border: none;
-  background: rgba(233, 75, 75, 0.1);
-  color: #e94b4b;
   border-radius: 50%;
   cursor: pointer;
   font-size: 14px;
@@ -117,6 +116,22 @@
   padding: 0;
   margin-left: 6px;
 }
+
+.bubble-pill-toggle {
+  background: rgba(154, 145, 133, 0.12);
+  color: #8a857d;
+}
+
+.bubble-pill-toggle:hover {
+  background: rgba(154, 145, 133, 0.22);
+  color: #2b2b2b;
+}
+
+.bubble-pill-cancel {
+  background: rgba(233, 75, 75, 0.1);
+  color: #e94b4b;
+}
+
 .bubble-pill-cancel:hover {
   background: rgba(233, 75, 75, 0.2);
 }
