@@ -1,11 +1,10 @@
 // 流 A spike 用占位 pet：一个 200×200 的米色 SVG 圆。
 //
-// 当前架构（2026-04-28，spike 阶段一稳定版）：
-// 1. Rust 启动时窗口铺满主屏 + ignoresMouseEvents = false（webview 接管鼠标）
-// 2. webview 监听 window mousemove/mousedown/mouseup
-// 3. 圆几何命中：圆内 → hover 表情 + 可拖动
-//
-// 已知尾巴：圆外的桌面图标点不到。等流 B/C 跑通后再单独 spike。
+// 当前架构（2026-04-29）：
+// 1. Rust 启动时窗口铺满主屏 + 默认全穿透
+// 2. PetCircle 上报 hit region 矩形，鼠标进矩形 Rust 关穿透 → 接管事件
+// 3. 圆几何命中（在矩形 hit region 内再做圆精确判定）：圆内 → hover 表情 + 可拖动
+// 4. 通过 onPosChange 把当前位置外推给 App，用于 BubbleStack 跟随渲染
 //
 // 调试条（左下角黑底白字）spike 验收后删除。
 
@@ -16,7 +15,14 @@ import "./PetCircle.css";
 const SIZE = 200;
 const RADIUS = SIZE / 2;
 
-export default function PetCircle() {
+interface PetCircleProps {
+  /** 把当前位置和尺寸暴露给上层（BubbleStack 跟随定位用） */
+  onPosChange?: (pos: { x: number; y: number; size: number }) => void;
+}
+
+export const PET_SIZE = SIZE;
+
+export default function PetCircle({ onPosChange }: PetCircleProps) {
   const [pos, setPos] = useState(() => ({
     x: Math.max(0, window.innerWidth / 2 - SIZE / 2),
     y: Math.max(0, window.innerHeight / 3 - SIZE / 2),
@@ -38,8 +44,10 @@ export default function PetCircle() {
       height: SIZE,
     });
 
+    onPosChange?.({ x: pos.x, y: pos.y, size: SIZE });
+
     return () => updateHitRegion("pet-circle", null);
-  }, [pos.x, pos.y]);
+  }, [pos.x, pos.y, onPosChange]);
 
   // 拖动：dragRef 记录鼠标按下时鼠标点相对圆左上的偏移
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
