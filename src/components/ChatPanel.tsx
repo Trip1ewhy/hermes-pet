@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { updateHitRegion } from "../hitRegions";
 import "./ChatPanel.css";
 
 interface DiscoverResult {
@@ -78,6 +79,8 @@ export default function ChatPanel() {
   const [listenerError, setListenerError] = useState<string | null>(null);
   const [tick, setTick] = useState(0); // 强制每秒重渲染跑表
 
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
   // 当前正在累积的 assistant message id（用于流式追加 chunk）
   const currentMsgIdRef = useRef<string | null>(null);
   const busyTaskIdRef = useRef<string | null>(null);
@@ -91,6 +94,38 @@ export default function ChatPanel() {
     const t = window.setInterval(() => setTick((x) => x + 1), 250);
     return () => window.clearInterval(t);
   }, [busyTaskId]);
+
+  useEffect(() => {
+    const syncPanelRegion = () => {
+      const el = panelRef.current;
+      if (!el) {
+        updateHitRegion("chat-panel", null);
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      updateHitRegion("chat-panel", {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    syncPanelRegion();
+    window.addEventListener("resize", syncPanelRegion);
+
+    const resizeObserver = new ResizeObserver(syncPanelRegion);
+    if (panelRef.current) {
+      resizeObserver.observe(panelRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("resize", syncPanelRegion);
+      resizeObserver.disconnect();
+      updateHitRegion("chat-panel", null);
+    };
+  }, []);
 
   // 输出区滚动到底
   const outputRef = useRef<HTMLDivElement | null>(null);
@@ -331,7 +366,7 @@ export default function ChatPanel() {
   }
 
   return (
-    <div className="chat-panel">
+    <div className="chat-panel" ref={panelRef}>
       <div className="chat-header">
         <span className="chat-title">Hermes 对话（流 B 临时面板）</span>
         <span

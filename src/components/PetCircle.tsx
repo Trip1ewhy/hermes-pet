@@ -10,19 +10,11 @@
 // 调试条（左下角黑底白字）spike 验收后删除。
 
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { updateHitRegion } from "../hitRegions";
 import "./PetCircle.css";
 
 const SIZE = 200;
 const RADIUS = SIZE / 2;
-
-async function setPassthrough(passthrough: boolean) {
-  try {
-    await invoke("set_pet_passthrough", { passthrough });
-  } catch (e) {
-    console.warn("set_pet_passthrough failed:", e);
-  }
-}
 
 export default function PetCircle() {
   const [pos, setPos] = useState(() => ({
@@ -37,6 +29,17 @@ export default function PetCircle() {
 
   const posRef = useRef(pos);
   posRef.current = pos;
+
+  useEffect(() => {
+    updateHitRegion("pet-circle", {
+      x: pos.x,
+      y: pos.y,
+      width: SIZE,
+      height: SIZE,
+    });
+
+    return () => updateHitRegion("pet-circle", null);
+  }, [pos.x, pos.y]);
 
   // 拖动：dragRef 记录鼠标按下时鼠标点相对圆左上的偏移
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
@@ -82,9 +85,6 @@ export default function PetCircle() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mousedown", onDown);
     window.addEventListener("mouseup", onUp);
-
-    // spike 阶段：明确告诉 Rust 不穿透（双保险）
-    setPassthrough(false);
 
     return () => {
       window.removeEventListener("mousemove", onMove);

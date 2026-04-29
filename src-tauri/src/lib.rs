@@ -1,22 +1,35 @@
 // Hermes 桌宠 - Tauri 后端入口
 //
-// 当前阶段（2026-04-28，spike 阶段一稳定版）：
-// - 透明 + always-on-top + all-spaces + never-hide
-// - 启动时铺满主屏，ignoresMouseEvents = false（webview 接管鼠标）
-// - 暴露 Tauri command set_pet_passthrough，前端按需切（暂未启用）
-//
-// 已知有意保留的尾巴：
-// 圆外的桌面图标点不到——整屏被 webview 接管。
-// 之前尝试的两个穿透方案都失败：
-//   * 方案 X1：webview 自己监听 mousemove + 进出圆切 ignoresMouseEvents
-//     → 一旦穿透，webview 就再也收不到 mousemove，没法切回
-//   * 方案 X2：Rust 30Hz 轮询 NSEvent.mouseLocation + emit "global-mouse"
-//     → poller 跑起来了但前端 listen 不响应，调试条死掉
-// 这条 spike 暂搁置，等核心交互（流 B/C）跑通后再单独啃。
+// 当前阶段（2026-04-29，穿透修正版）：
+// - 透明 + floating + all-spaces + never-hide
+// - 启动时默认鼠标穿透，透明区域不拦截桌面/其它 app
+// - 前端注册可交互矩形，Rust 轮询全局鼠标坐标并自动切 ignoresMouseEvents
+// - 鼠标按下后短暂捕获，避免拖动宠物时离开矩形导致事件丢失
 
 mod runner;
 
+use serde::Deserialize;
+use std::sync::{Arc, Mutex};
 use tauri::Manager;
+
+#[derive(Clone, Debug, Deserialize)]
+struct HitRegion {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+impl HitRegion {
+    fn contains(&self, x: f64, y: f64) -> bool {
+        x >= self.x && x <= self.x + self.width && y >= self.y && y <= self.y + self.height
+    }
+}
+
+#[derive(Default)]
+struct MouseHitState {
+    regions: Mutex<Vec<HitRegion>>,
+}
 
 /// 切换 pet 窗口的鼠标穿透状态。前端 hit-test 后调：
 /// - `passthrough = true`  → 圆外，事件穿透到桌面
@@ -26,6 +39,20 @@ fn set_pet_passthrough(window: tauri::Window, passthrough: bool) -> Result<(), S
     window
         .set_ignore_cursor_events(passthrough)
         .map_err(|e| format!("set_ignore_cursor_events failed: {e}"))
+}
+
+/// 前端把当前可交互 DOM 区域同步给后端，后端负责在穿透状态下找回鼠标。
+#[tauri::command]
+fn set_pet_hit_regions(
+    state: tauri::State<'_, Arc<MouseHitState>>,
+    regions: Vec<HitRegion>,
+) -> Result<(), String> {
+    let mut guard = state
+        .regions
+        .lock()
+        .map_err(|_| "hit region lock poisoned".to_string())?;
+    *guard = regions;
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
@@ -67,17 +94,88 @@ fn tame_macos_window(win: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 fn tame_macos_window(_win: &tauri::WebviewWindow) {}
 
+#[cfg(target_os = "macos")]
+fn start_mouse_passthrough_poller(win: tauri::WebviewWindow, hit_state: Arc<MouseHitState>) {
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send};
+    use objc2_foundation::{NSPoint, NSRect};
+    use std::time::Duration;
+
+    std::thread::spawn(move || {
+        let mut last_passthrough: Option<bool> = None;
+        let mut captured = false;
+
+        loop {
+            let regions = match hit_state.regions.lock() {
+                Ok(guard) => guard.clone(),
+                Err(_) => Vec::new(),
+            };
+
+            let Some((x, y, pressed_buttons)) = macos_mouse_in_window_points(&win) else {
+                std::thread::sleep(Duration::from_millis(33));
+                continue;
+            };
+
+            let primary_down = pressed_buttons & 1 != 0;
+            let inside_region = regions.iter().any(|region| region.contains(x, y));
+
+            if primary_down && inside_region {
+                captured = true;
+            } else if !primary_down {
+                captured = false;
+            }
+
+            let passthrough = !(inside_region || captured);
+            if last_passthrough != Some(passthrough) {
+                if let Err(e) = win.set_ignore_cursor_events(passthrough) {
+                    eprintln!("[hermes-pet] set_ignore_cursor_events({passthrough}) failed: {e}");
+                } else {
+                    last_passthrough = Some(passthrough);
+                }
+            }
+
+            std::thread::sleep(Duration::from_millis(33));
+        }
+    });
+
+    fn macos_mouse_in_window_points(win: &tauri::WebviewWindow) -> Option<(f64, f64, usize)> {
+        let ns_window_ptr: *mut std::ffi::c_void = win.ns_window().ok()?;
+        if ns_window_ptr.is_null() {
+            return None;
+        }
+
+        unsafe {
+            let window: *mut AnyObject = ns_window_ptr.cast();
+            let mouse: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+            let frame: NSRect = msg_send![window, frame];
+            let pressed_buttons: usize = msg_send![class!(NSEvent), pressedMouseButtons];
+
+            // AppKit screen/window coordinates are bottom-left based; CSS uses top-left.
+            let x = mouse.x - frame.origin.x;
+            let y = frame.size.height - (mouse.y - frame.origin.y);
+            Some((x, y, pressed_buttons))
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn start_mouse_passthrough_poller(_win: tauri::WebviewWindow, _hit_state: Arc<MouseHitState>) {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let hit_state = Arc::new(MouseHitState::default());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(hit_state.clone())
         .invoke_handler(tauri::generate_handler![
             set_pet_passthrough,
+            set_pet_hit_regions,
             runner::hermes_discover,
             runner::hermes_start_chat,
             runner::hermes_cancel
         ])
-        .setup(|app| {
+        .setup(move |app| {
             if let Some(win) = app.get_webview_window("pet") {
                 if let Ok(Some(monitor)) = win.primary_monitor() {
                     let size = monitor.size();
@@ -90,11 +188,12 @@ pub fn run() {
                     );
                 }
 
-                // 启动不穿透，让 webview 接管整个屏幕的鼠标
-                if let Err(e) = win.set_ignore_cursor_events(false) {
-                    eprintln!("[hermes-pet] set_ignore_cursor_events(false) failed: {e}");
+                // 启动默认穿透；等前端上报 hit region 后，后端 poller 会按需切回可交互。
+                if let Err(e) = win.set_ignore_cursor_events(true) {
+                    eprintln!("[hermes-pet] set_ignore_cursor_events(true) failed: {e}");
                 }
                 tame_macos_window(&win);
+                start_mouse_passthrough_poller(win, hit_state.clone());
             } else {
                 eprintln!("[hermes-pet] pet window not found at startup!");
             }

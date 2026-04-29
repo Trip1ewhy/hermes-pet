@@ -198,11 +198,7 @@ pub async fn hermes_start_chat(
     };
 
     // 拼参数
-    let mut cmd_args: Vec<String> = vec![
-        "chat".into(),
-        "-Q".into(),
-        "--accept-hooks".into(),
-    ];
+    let mut cmd_args: Vec<String> = vec!["chat".into(), "-Q".into(), "--accept-hooks".into()];
     if let Some(sid) = args.session_id.as_deref() {
         if !sid.is_empty() {
             cmd_args.push("-r".into());
@@ -524,7 +520,10 @@ pub async fn hermes_cancel(task_id: String) -> Result<(), String> {
             eprintln!("[hermes-runner] cancel kill FAILED: {e}");
             return Err(format!("kill 失败: {e}"));
         }
-        eprintln!("[hermes-runner] cancel kill signal sent for task={}", task_id);
+        eprintln!(
+            "[hermes-runner] cancel kill signal sent for task={}",
+            task_id
+        );
     } else {
         eprintln!(
             "[hermes-runner] cancel: task={} not in RUNNING (already done?)",
