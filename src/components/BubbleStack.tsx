@@ -50,6 +50,12 @@ interface BubbleConfig {
   multiTurn: boolean;
 }
 
+interface ConversationMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
 const BUBBLES: BubbleConfig[] = [
   {
     kind: "research",
@@ -157,8 +163,11 @@ function Bubble({
   onFocusChange,
 }: BubbleProps) {
   const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverBodyRef = useRef<HTMLDivElement>(null);
+  const currentAssistantMessageIdRef = useRef<string | null>(null);
 
   // 每个气泡一个独立的 task hook
   const task = useHermesTask();
@@ -174,6 +183,24 @@ function Bubble({
   function handleSubmit() {
     const text = input.trim();
     if (!text) return;
+
+    if (cfg.multiTurn) {
+      const assistantMessageId = globalThis.crypto?.randomUUID?.() ?? `assistant-${Date.now()}`;
+      currentAssistantMessageIdRef.current = assistantMessageId;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: globalThis.crypto?.randomUUID?.() ?? `user-${Date.now()}`,
+          role: "user",
+          content: text,
+        },
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+        },
+      ]);
+    }
 
     // dialog 多轮：第二轮起带 sessionId，不再带 systemPrompt
     const submitArgs = cfg.multiTurn && task.sessionId
@@ -215,6 +242,33 @@ function Bubble({
       inputRef.current?.focus();
     }
   }, [popoverOpen, cfg.multiTurn]);
+
+  // dialog 浮窗展示的是当前 session 的消息流：右侧用户问题，左侧 Hermes 回复。
+  useEffect(() => {
+    if (!cfg.multiTurn) return;
+    const assistantMessageId = currentAssistantMessageIdRef.current;
+    if (!assistantMessageId) return;
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === assistantMessageId
+          ? { ...message, content: task.output }
+          : message,
+      ),
+    );
+  }, [cfg.multiTurn, task.output]);
+
+  useEffect(() => {
+    if (!cfg.multiTurn) return;
+    if (task.status === "done" || task.status === "error" || task.status === "cancelled") {
+      currentAssistantMessageIdRef.current = null;
+    }
+  }, [cfg.multiTurn, task.status]);
+
+  useEffect(() => {
+    if (!popoverOpen || !cfg.multiTurn) return;
+    const body = popoverBodyRef.current;
+    body?.scrollTo({ top: body.scrollHeight });
+  }, [popoverOpen, cfg.multiTurn, messages, task.output]);
 
   // 状态色（V1 简化：idle 灰 / running 红 / done 绿 / error 红）
   const dotColor = useMemo(() => {
@@ -312,6 +366,8 @@ function Bubble({
                 onPopoverToggle(false);
                 if (cfg.multiTurn) {
                   // 对话气泡的 × = 完全重置
+                  currentAssistantMessageIdRef.current = null;
+                  setMessages([]);
                   task.reset();
                 }
               }}
@@ -320,8 +376,34 @@ function Bubble({
               ×
             </button>
           </div>
-          <div className="bubble-popover-body">
-            {task.output || (
+          <div
+            ref={popoverBodyRef}
+            className={`bubble-popover-body${cfg.multiTurn ? " is-conversation" : ""}`}
+          >
+            {cfg.multiTurn ? (
+              messages.length > 0 ? (
+                <div className="conversation-list">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`conversation-row is-${message.role}`}
+                    >
+                      <div className="conversation-message">
+                        {message.content || (
+                          <span className="conversation-message-pending">
+                            {isRunning ? "Hermes 正在想…" : "没有收到回复。"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span className="bubble-popover-empty">
+                  在上方输入框里发条消息开始。
+                </span>
+              )
+            ) : task.output || (
               <span className="bubble-popover-empty">
                 {task.status === "idle"
                   ? "在上方输入框里发条消息开始。"

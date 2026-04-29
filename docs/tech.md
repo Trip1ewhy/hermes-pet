@@ -166,11 +166,12 @@ hermes chat -q "<query>" -Q [--source tool] [--continue|--resume <id>]
 
 ## 5. 上下文持久化（决策更新）
 
-**完全委托给 Hermes Agent。** 桌宠端不存任何对话历史，只存 `session_id`。
+**上下文完全委托给 Hermes Agent。** 桌宠端只存当前会话的 `session_id`，以及一份内存里的 UI 展示消息列表；不会把历史重放给 Hermes，也不做持久化。
 
 - 对话气泡首次提交：spawn 不带 `-r`，从 stdout/stderr 中解析 `session_id:`，存到内存。2026-04-29 实测 `session_id` 实际在 stderr
 - 同一对话气泡后续提交：用 `hermes chat -Q -r <session_id> -q "<新输入>"`
-- 关闭对话浮窗的 × → 丢掉内存里的 session_id（V1 不做"恢复昨天那个对话"）
+- 对话浮窗展示当前 session 的完整消息流：右侧是用户问题，左侧是 Hermes 回复；最新回复随 stdout chunk 实时增长
+- 关闭对话浮窗的 × → 丢掉内存里的 session_id 和 UI 消息列表（V1 不做"恢复昨天那个对话"）
 - 用户如果想找回 → 走 `hermes sessions browse` 自己处理（桌宠 V2 可以加"恢复会话"入口）
 
 > ✅ 2026-04-29 实测：`-Q` 模式会输出 `session_id:`，但它可能在 stderr 而不是 stdout；runner 必须两边都扫。

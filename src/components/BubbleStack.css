@@ -188,6 +188,57 @@
   color: #3a3a3a;
 }
 
+.bubble-popover-body.is-conversation {
+  white-space: normal;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  font-size: 13px;
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conversation-row {
+  display: flex;
+}
+
+.conversation-row.is-user {
+  justify-content: flex-end;
+}
+
+.conversation-row.is-assistant {
+  justify-content: flex-start;
+}
+
+.conversation-message {
+  max-width: 82%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.conversation-row.is-user .conversation-message {
+  background: #dcefff;
+  border-bottom-right-radius: 4px;
+  color: #1f3b57;
+}
+
+.conversation-row.is-assistant .conversation-message {
+  background: #f5ead7;
+  border-bottom-left-radius: 4px;
+  color: #342b1f;
+}
+
+.conversation-message-pending {
+  color: #9a9185;
+  font-style: italic;
+}
+
 .bubble-popover-empty {
   color: #a8a39c;
   font-style: italic;
